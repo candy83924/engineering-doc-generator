@@ -29,7 +29,7 @@ DEFAULT_TEMPLATES = {
     "acceptance_spec": "驗收規範範本.docx",
     "common_bid": "共同標單範本.xlsx",
     "quote_fill": "填寫報價單內容範本.xlsx",
-    "compliance_filter": "工程規範符合性篩選表範本.xls",
+    "compliance_filter": "工程規範符合性篩選表範本.xlsx",
 }
 
 

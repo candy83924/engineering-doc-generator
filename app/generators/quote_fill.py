@@ -46,9 +46,66 @@ class QuoteFillGenerator(BaseGenerator):
             return self._generate_from_scratch(quote_data, fill_content)
 
     def _fill_template(self, quote_data: QuoteData, content: QuoteFillContent) -> bytes:
-        """Fill an existing Excel template."""
+        """Fill an existing Excel template with AI content."""
         from app.templates.engine import ExcelTemplateEngine
-        engine = ExcelTemplateEngine(self.template_path)
+        try:
+            engine = ExcelTemplateEngine(self.template_path)
+        except Exception as e:
+            logger.warning("Cannot open template %s: %s, generating from scratch", self.template_path, e)
+            return self._generate_from_scratch(quote_data, content)
+
+        ws_name = engine.get_sheet_names()[0]
+
+        # Map AI content to template cells - search and replace placeholder patterns
+        replacements = {
+            "請填": "",  # Clear generic placeholders
+        }
+        # Fill known fields by searching for labels and filling adjacent cells
+        field_map = {
+            "請購名稱": quote_data.metadata.project_name or "",
+            "設備名稱": content.situation_desc_1[:20] if content.situation_desc_1 else "",
+        }
+
+        # Write AI narratives into the form sections
+        wb = engine.wb
+        ws = wb[ws_name]
+        for row in ws.iter_rows():
+            for cell in row:
+                if cell.value and isinstance(cell.value, str):
+                    # Fill field values
+                    for label, value in field_map.items():
+                        if label in str(cell.value):
+                            # Find the next cell in the row to fill
+                            next_cell = ws.cell(row=cell.row, column=cell.column + 1)
+                            if next_cell.value and "請填" in str(next_cell.value):
+                                next_cell.value = value
+                    # Fill narrative sections
+                    if "現況說明" in str(cell.value) and content.situation_desc_1:
+                        # Find the cell below or next to fill
+                        below = ws.cell(row=cell.row + 1, column=cell.column)
+                        if below.value is None or "請填" in str(below.value or ""):
+                            below.value = content.situation_desc_1
+                    if "問題及風險" in str(cell.value) and content.problem_risk_1:
+                        below = ws.cell(row=cell.row + 1, column=cell.column)
+                        if below.value is None or "請填" in str(below.value or ""):
+                            below.value = content.problem_risk_1
+                    if "對策評估" in str(cell.value) and content.countermeasure_1:
+                        below = ws.cell(row=cell.row + 1, column=cell.column)
+                        if below.value is None or "請填" in str(below.value or ""):
+                            below.value = content.countermeasure_1
+                    if "執行改善" in str(cell.value) and content.execution_1:
+                        below = ws.cell(row=cell.row + 1, column=cell.column)
+                        if below.value is None or "請填" in str(below.value or ""):
+                            below.value = content.execution_1
+                    if "改善說明" in str(cell.value) and content.improvement_desc:
+                        below = ws.cell(row=cell.row + 1, column=cell.column)
+                        if below.value is None or "請填" in str(below.value or ""):
+                            below.value = content.improvement_desc
+                    if "補充說明" in str(cell.value) and content.supplementary_notes:
+                        below = ws.cell(row=cell.row + 1, column=cell.column)
+                        if below.value is None or "請填" in str(below.value or ""):
+                            below.value = content.supplementary_notes
+
         return engine.save_to_bytes()
 
     def _generate_from_scratch(self, quote_data: QuoteData, content: QuoteFillContent) -> bytes:

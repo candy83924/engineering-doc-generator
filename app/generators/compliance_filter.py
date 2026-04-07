@@ -50,7 +50,11 @@ class ComplianceFilterGenerator(BaseGenerator):
         """Filter an existing compliance spec template."""
         from app.templates.engine import ExcelTemplateEngine
 
-        engine = ExcelTemplateEngine(self.template_path)
+        try:
+            engine = ExcelTemplateEngine(self.template_path)
+        except Exception as e:
+            logger.warning("Cannot open template %s: %s, generating from scratch", self.template_path, e)
+            return await self._generate_from_scratch(quote_data, compliance_results)
         ws_name = engine.get_sheet_names()[0]
 
         all_rows = engine.get_all_rows(ws_name, start_row=SPEC_CONTENT_START_ROW)
