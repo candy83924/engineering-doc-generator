@@ -1,0 +1,23 @@
+# Environment (contains API keys - NEVER commit)
+.env
+
+# Python
+__pycache__/
+*.pyc
+*.pyo
+.venv/
+venv/
+
+# Output
+output/
+*.zip
+
+# Temp
+*.tmp
+cloudflared.exe
+
+# IDE
+.vscode/
+.idea/
+ocr_results.json
+test_page.png

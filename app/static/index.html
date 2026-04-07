@@ -1,0 +1,782 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<title>工程文件生成系統</title>
+<style>
+:root {
+  --primary: #2563eb;
+  --primary-dark: #1d4ed8;
+  --primary-light: #dbeafe;
+  --success: #16a34a;
+  --success-light: #dcfce7;
+  --warn: #d97706;
+  --warn-light: #fef3c7;
+  --danger: #dc2626;
+  --danger-light: #fee2e2;
+  --gray-50: #f9fafb;
+  --gray-100: #f3f4f6;
+  --gray-200: #e5e7eb;
+  --gray-300: #d1d5db;
+  --gray-400: #9ca3af;
+  --gray-500: #6b7280;
+  --gray-600: #4b5563;
+  --gray-700: #374151;
+  --gray-800: #1f2937;
+  --radius: 12px;
+  --shadow: 0 1px 3px rgba(0,0,0,0.1), 0 1px 2px rgba(0,0,0,0.06);
+  --shadow-lg: 0 10px 15px -3px rgba(0,0,0,0.1), 0 4px 6px -2px rgba(0,0,0,0.05);
+}
+* { margin: 0; padding: 0; box-sizing: border-box; }
+body {
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "Microsoft JhengHei", sans-serif;
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  min-height: 100vh;
+  min-height: 100dvh;
+  color: var(--gray-800);
+}
+.app-container {
+  max-width: 640px;
+  margin: 0 auto;
+  padding: 16px;
+  padding-bottom: env(safe-area-inset-bottom, 16px);
+}
+
+/* Header */
+.header { text-align: center; padding: 24px 0 16px; color: white; }
+.header h1 { font-size: 22px; font-weight: 700; text-shadow: 0 2px 4px rgba(0,0,0,0.2); }
+.header p { font-size: 13px; opacity: 0.85; margin-top: 4px; }
+
+/* Cards */
+.card {
+  background: white;
+  border-radius: var(--radius);
+  box-shadow: var(--shadow-lg);
+  padding: 20px;
+  margin-bottom: 16px;
+}
+.card-title {
+  font-size: 15px; font-weight: 600; color: var(--gray-700);
+  margin-bottom: 14px; display: flex; align-items: center; gap: 8px;
+}
+.card-title .icon { width: 20px; height: 20px; flex-shrink: 0; }
+
+/* Upload Zone */
+.upload-zone {
+  border: 2px dashed var(--gray-300);
+  border-radius: var(--radius);
+  padding: 28px 16px;
+  text-align: center;
+  cursor: pointer;
+  transition: all 0.2s;
+  position: relative;
+}
+.upload-zone:active, .upload-zone.drag-over {
+  border-color: var(--primary);
+  background: var(--primary-light);
+}
+.upload-zone.has-file {
+  border-color: var(--success);
+  background: var(--success-light);
+  border-style: solid;
+}
+.upload-zone input[type="file"] {
+  position: absolute; inset: 0; opacity: 0; cursor: pointer; font-size: 0;
+}
+.upload-icon { font-size: 36px; margin-bottom: 8px; }
+.upload-text { font-size: 14px; color: var(--gray-500); }
+.upload-text strong { color: var(--primary); }
+.upload-filename {
+  font-size: 13px; color: var(--success); font-weight: 600;
+  margin-top: 6px; word-break: break-all;
+}
+
+/* Template section */
+.template-status {
+  padding: 12px 16px;
+  background: var(--success-light);
+  border-radius: 8px;
+  font-size: 13px;
+  color: var(--success);
+  font-weight: 500;
+  margin-bottom: 12px;
+  line-height: 1.5;
+}
+.template-toggle {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  cursor: pointer;
+  font-size: 13px;
+  color: var(--gray-500);
+  -webkit-tap-highlight-color: transparent;
+}
+.template-toggle input { display: none; }
+.template-toggle .toggle-track {
+  width: 40px; height: 22px;
+  background: var(--gray-300);
+  border-radius: 11px;
+  position: relative;
+  transition: background 0.2s;
+  flex-shrink: 0;
+}
+.template-toggle input:checked + .toggle-track { background: var(--primary); }
+.toggle-track::after {
+  content: '';
+  position: absolute;
+  width: 18px; height: 18px;
+  background: white;
+  border-radius: 50%;
+  top: 2px; left: 2px;
+  transition: transform 0.2s;
+}
+.template-toggle input:checked + .toggle-track::after { transform: translateX(18px); }
+.template-uploads {
+  display: none;
+  margin-top: 12px;
+}
+.template-uploads.show { display: block; }
+.template-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 10px;
+}
+.template-item {
+  border: 1.5px dashed var(--gray-200);
+  border-radius: 8px;
+  padding: 12px 8px;
+  text-align: center;
+  cursor: pointer;
+  position: relative;
+  transition: all 0.2s;
+  min-height: 80px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+}
+.template-item.has-file {
+  border-color: var(--success);
+  background: var(--success-light);
+  border-style: solid;
+}
+.template-item input[type="file"] {
+  position: absolute; inset: 0; opacity: 0; cursor: pointer;
+}
+.template-item .t-icon { font-size: 22px; margin-bottom: 4px; }
+.template-item .t-label { font-size: 11px; color: var(--gray-600); font-weight: 500; line-height: 1.3; }
+.template-item .t-file { font-size: 10px; color: var(--success); margin-top: 3px; word-break: break-all; font-weight: 600; }
+.template-item .t-optional { font-size: 9px; color: var(--gray-400); margin-top: 2px; }
+.clear-file {
+  position: absolute; top: 4px; right: 4px;
+  width: 22px; height: 22px;
+  border-radius: 50%; border: none;
+  background: var(--danger); color: white;
+  font-size: 14px; cursor: pointer;
+  display: none; align-items: center; justify-content: center;
+  z-index: 5; line-height: 1;
+}
+.has-file .clear-file { display: flex; }
+
+/* Textarea */
+.brief-input {
+  width: 100%;
+  border: 1.5px solid var(--gray-200);
+  border-radius: 8px;
+  padding: 12px;
+  font-size: 14px;
+  font-family: inherit;
+  resize: vertical;
+  min-height: 80px;
+  transition: border-color 0.2s;
+  line-height: 1.6;
+}
+.brief-input:focus {
+  outline: none;
+  border-color: var(--primary);
+  box-shadow: 0 0 0 3px rgba(37,99,235,0.1);
+}
+.brief-hint { font-size: 11px; color: var(--gray-400); margin-top: 6px; line-height: 1.4; }
+
+/* Doc checkboxes */
+.doc-checks { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+.doc-check {
+  display: flex; align-items: center; gap: 8px;
+  padding: 10px 12px;
+  border: 1.5px solid var(--gray-200);
+  border-radius: 8px;
+  cursor: pointer;
+  transition: all 0.15s;
+  -webkit-tap-highlight-color: transparent;
+}
+.doc-check:has(input:checked) { border-color: var(--primary); background: var(--primary-light); }
+.doc-check input[type="checkbox"] { width: 18px; height: 18px; accent-color: var(--primary); flex-shrink: 0; }
+.doc-check label { font-size: 13px; font-weight: 500; cursor: pointer; line-height: 1.3; }
+.doc-check .doc-ext { font-size: 10px; color: var(--gray-400); display: block; }
+
+/* Generate Button */
+.btn-generate {
+  width: 100%; padding: 16px;
+  border: none; border-radius: var(--radius);
+  background: linear-gradient(135deg, #2563eb, #7c3aed);
+  color: white; font-size: 17px; font-weight: 700;
+  cursor: pointer; letter-spacing: 1px;
+  position: relative;
+}
+.btn-generate:active { transform: scale(0.98); }
+.btn-generate:disabled { background: var(--gray-300); cursor: not-allowed; }
+
+/* Password Modal */
+.modal-overlay {
+  display: none; position: fixed; inset: 0;
+  background: rgba(0,0,0,0.6); z-index: 1000;
+  justify-content: center; align-items: center;
+  backdrop-filter: blur(4px);
+}
+.modal-overlay.active { display: flex; }
+.modal-card {
+  background: white; border-radius: 16px;
+  padding: 28px 24px; width: 85%; max-width: 340px;
+  box-shadow: 0 25px 50px rgba(0,0,0,0.25);
+}
+.modal-card h3 { font-size: 18px; margin-bottom: 16px; text-align: center; }
+.modal-input {
+  width: 100%; padding: 12px;
+  border: 1.5px solid var(--gray-200); border-radius: 8px;
+  font-size: 16px; font-family: inherit;
+  text-align: center; letter-spacing: 2px;
+}
+.modal-input:focus { outline: none; border-color: var(--primary); }
+.modal-btn {
+  width: 100%; padding: 12px; margin-top: 12px;
+  border: none; border-radius: 8px;
+  background: var(--primary); color: white;
+  font-size: 15px; font-weight: 600; cursor: pointer;
+}
+.modal-error { color: var(--danger); font-size: 12px; margin-top: 8px; text-align: center; display: none; }
+.modal-skip { text-align: center; margin-top: 12px; }
+.modal-skip a { font-size: 12px; color: var(--gray-400); cursor: pointer; text-decoration: underline; }
+
+/* Progress */
+.progress-overlay {
+  display: none; position: fixed; inset: 0;
+  background: rgba(0,0,0,0.6); z-index: 1000;
+  justify-content: center; align-items: center;
+  backdrop-filter: blur(4px);
+}
+.progress-overlay.active { display: flex; }
+.progress-card {
+  background: white; border-radius: 16px;
+  padding: 32px 28px; text-align: center;
+  width: 85%; max-width: 340px;
+  box-shadow: 0 25px 50px rgba(0,0,0,0.25);
+}
+.spinner {
+  width: 48px; height: 48px;
+  border: 4px solid var(--gray-200);
+  border-top-color: var(--primary);
+  border-radius: 50%;
+  animation: spin 0.8s linear infinite;
+  margin: 0 auto 16px;
+}
+@keyframes spin { to { transform: rotate(360deg); } }
+.progress-text { font-size: 15px; color: var(--gray-700); font-weight: 600; }
+.progress-sub { font-size: 12px; color: var(--gray-400); margin-top: 6px; }
+.progress-steps { margin-top: 16px; text-align: left; }
+.progress-step {
+  font-size: 12px; color: var(--gray-400);
+  padding: 4px 0; display: flex; align-items: center; gap: 6px;
+}
+.progress-step.active { color: var(--primary); font-weight: 600; }
+.progress-step.done { color: var(--success); }
+.step-dot {
+  width: 8px; height: 8px; border-radius: 50%;
+  background: var(--gray-300); flex-shrink: 0;
+}
+.progress-step.active .step-dot { background: var(--primary); animation: pulse 1s infinite; }
+.progress-step.done .step-dot { background: var(--success); }
+@keyframes pulse { 0%,100% { opacity:1; } 50% { opacity:0.4; } }
+
+/* Toast */
+.toast {
+  position: fixed; bottom: 24px; left: 50%;
+  transform: translateX(-50%) translateY(100px);
+  padding: 14px 24px; border-radius: 12px;
+  font-size: 14px; font-weight: 600; z-index: 2000;
+  transition: transform 0.3s ease;
+  max-width: 90%; text-align: center; box-shadow: var(--shadow-lg);
+}
+.toast.show { transform: translateX(-50%) translateY(0); }
+.toast.success { background: var(--success); color: white; }
+.toast.error { background: var(--danger); color: white; }
+
+/* Result Card */
+.result-card { display: none; }
+.result-card.show { display: block; }
+.result-files { list-style: none; }
+.result-files li {
+  padding: 10px 0; border-bottom: 1px solid var(--gray-100);
+  font-size: 13px; display: flex; justify-content: space-between; align-items: center;
+}
+.result-files li:last-child { border-bottom: none; }
+.result-files .file-name { font-weight: 500; flex: 1; word-break: break-all; }
+.result-files .file-size { color: var(--gray-400); font-size: 11px; margin-left: 8px; white-space: nowrap; }
+.btn-download {
+  display: inline-block; margin-top: 12px; padding: 12px 24px;
+  background: var(--success); color: white;
+  border: none; border-radius: 8px;
+  font-size: 15px; font-weight: 600; cursor: pointer; width: 100%; text-align: center;
+}
+.footer { text-align: center; padding: 16px; color: rgba(255,255,255,0.6); font-size: 11px; }
+
+/* Lock icon */
+.lock-status {
+  position: fixed; top: 12px; right: 12px;
+  background: rgba(255,255,255,0.2); border-radius: 20px;
+  padding: 6px 12px; font-size: 12px; color: white;
+  cursor: pointer; z-index: 100;
+  backdrop-filter: blur(8px);
+}
+</style>
+</head>
+<body>
+
+<!-- Lock status -->
+<div class="lock-status" id="lockStatus" onclick="showPasswordModal()">Loading...</div>
+
+<div class="app-container">
+  <div class="header">
+    <h1>工程文件生成系統</h1>
+    <p>上傳報價單 PDF，AI 自動產出工程文件</p>
+  </div>
+
+  <!-- PDF Upload -->
+  <div class="card">
+    <div class="card-title">
+      <svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>
+      報價單 PDF（必填）
+    </div>
+    <div class="upload-zone" id="pdfZone">
+      <input type="file" id="pdfInput" accept=".pdf">
+      <button class="clear-file" onclick="clearFile(event,'pdfInput')">&times;</button>
+      <div class="upload-icon">📄</div>
+      <div class="upload-text">點擊或拖曳上傳<strong>報價單 PDF</strong></div>
+      <div class="upload-filename" id="pdfName"></div>
+    </div>
+  </div>
+
+  <!-- Project Brief -->
+  <div class="card">
+    <div class="card-title">
+      <svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
+      工程案說明（選填）
+    </div>
+    <textarea class="brief-input" id="projectBrief" placeholder="例：本案為欣興電子YM1廠區5樓無塵室改善工程，主要進行隔間庫板更換及空調系統升級..."></textarea>
+    <div class="brief-hint">可簡述工程背景、目的、範圍等。若不填寫，AI 將自動根據報價單項目判斷生成。</div>
+  </div>
+
+  <!-- Templates -->
+  <div class="card">
+    <div class="card-title">
+      <svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 4h16v16H4z"/><path d="M4 9h16"/><path d="M9 4v16"/></svg>
+      範本設定
+    </div>
+    <div class="template-status">
+      已內建 4 個預設範本，直接生成即可使用。
+    </div>
+    <label class="template-toggle" id="tplToggle">
+      <input type="checkbox" id="tplOverride" onchange="toggleTemplateUpload()">
+      <span class="toggle-track"></span>
+      自訂範本（覆蓋預設）
+    </label>
+    <div class="template-uploads" id="tplUploads">
+      <div class="template-grid">
+        <div class="template-item" id="tplAcceptance">
+          <input type="file" id="tplAcceptanceInput" accept=".docx" onchange="onTemplateFile(this,'tplAcceptance')">
+          <button class="clear-file" onclick="clearFile(event,'tplAcceptanceInput')">&times;</button>
+          <div class="t-icon">📋</div>
+          <div class="t-label">驗收規範</div>
+          <div class="t-optional">.docx</div>
+          <div class="t-file" id="tplAcceptanceName"></div>
+        </div>
+        <div class="template-item" id="tplBid">
+          <input type="file" id="tplBidInput" accept=".xlsx,.xls" onchange="onTemplateFile(this,'tplBid')">
+          <button class="clear-file" onclick="clearFile(event,'tplBidInput')">&times;</button>
+          <div class="t-icon">📊</div>
+          <div class="t-label">空白標單</div>
+          <div class="t-optional">.xlsx</div>
+          <div class="t-file" id="tplBidName"></div>
+        </div>
+        <div class="template-item" id="tplQuote">
+          <input type="file" id="tplQuoteInput" accept=".xlsx,.xls" onchange="onTemplateFile(this,'tplQuote')">
+          <button class="clear-file" onclick="clearFile(event,'tplQuoteInput')">&times;</button>
+          <div class="t-icon">📝</div>
+          <div class="t-label">報價內容</div>
+          <div class="t-optional">.xlsx</div>
+          <div class="t-file" id="tplQuoteName"></div>
+        </div>
+        <div class="template-item" id="tplCompliance">
+          <input type="file" id="tplComplianceInput" accept=".xlsx,.xls" onchange="onTemplateFile(this,'tplCompliance')">
+          <button class="clear-file" onclick="clearFile(event,'tplComplianceInput')">&times;</button>
+          <div class="t-icon">✅</div>
+          <div class="t-label">規格篩選表</div>
+          <div class="t-optional">.xlsx / .xls</div>
+          <div class="t-file" id="tplComplianceName"></div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Doc Selection -->
+  <div class="card">
+    <div class="card-title">
+      <svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 11l3 3L22 4"/><path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"/></svg>
+      生成文件類型
+    </div>
+    <div class="doc-checks">
+      <div class="doc-check">
+        <input type="checkbox" id="chkAcceptance" value="acceptance_spec" checked>
+        <label for="chkAcceptance">驗收規範<span class="doc-ext">.docx</span></label>
+      </div>
+      <div class="doc-check">
+        <input type="checkbox" id="chkBid" value="common_bid" checked>
+        <label for="chkBid">空白標單<span class="doc-ext">.xlsx</span></label>
+      </div>
+      <div class="doc-check">
+        <input type="checkbox" id="chkQuote" value="quote_fill" checked>
+        <label for="chkQuote">報價內容<span class="doc-ext">.xlsx</span></label>
+      </div>
+      <div class="doc-check">
+        <input type="checkbox" id="chkCompliance" value="compliance_filter" checked>
+        <label for="chkCompliance">規格篩選表<span class="doc-ext">.xlsx</span></label>
+      </div>
+    </div>
+  </div>
+
+  <button class="btn-generate" id="btnGenerate" onclick="generate()">生成工程文件</button>
+
+  <!-- Result -->
+  <div class="card result-card" id="resultCard">
+    <div class="card-title" style="color:var(--success);">
+      <svg class="icon" viewBox="0 0 24 24" fill="none" stroke="var(--success)" stroke-width="2"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg>
+      生成完成
+    </div>
+    <div id="resultInfo" style="font-size:12px;color:var(--gray-500);margin-bottom:10px;"></div>
+    <ul class="result-files" id="resultFiles"></ul>
+    <button class="btn-download" id="btnDownload" onclick="downloadZip()">下載 ZIP 檔案</button>
+  </div>
+
+  <div class="footer">工程文件生成系統 v1.0</div>
+</div>
+
+<!-- Password Modal -->
+<div class="modal-overlay" id="passwordModal">
+  <div class="modal-card">
+    <h3>請輸入存取密碼</h3>
+    <input type="password" class="modal-input" id="passwordInput" placeholder="密碼" autocomplete="off"
+           onkeydown="if(event.key==='Enter')submitPassword()">
+    <button class="modal-btn" onclick="submitPassword()">確認</button>
+    <div class="modal-error" id="passwordError">密碼錯誤，請重新輸入</div>
+  </div>
+</div>
+
+<!-- Progress -->
+<div class="progress-overlay" id="progressOverlay">
+  <div class="progress-card">
+    <div class="spinner"></div>
+    <div class="progress-text" id="progressText">正在處理...</div>
+    <div class="progress-sub" id="progressSub">請稍候，AI 正在分析報價單</div>
+    <div class="progress-steps">
+      <div class="progress-step active" id="step1"><span class="step-dot"></span>解析報價單 PDF</div>
+      <div class="progress-step" id="step2"><span class="step-dot"></span>AI 分析生成內容</div>
+      <div class="progress-step" id="step3"><span class="step-dot"></span>產出工程文件</div>
+      <div class="progress-step" id="step4"><span class="step-dot"></span>打包下載檔案</div>
+    </div>
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+let apiPassword = localStorage.getItem('api_password') || '';
+let passwordRequired = false;
+
+// --- Init: check password ---
+async function checkAuth() {
+  try {
+    const resp = await fetch('/api/verify-password', {
+      method: 'POST',
+      headers: apiPassword ? { 'X-Api-Password': apiPassword } : {},
+    });
+    const data = await resp.json();
+    passwordRequired = data.required;
+    if (!data.required) {
+      document.getElementById('lockStatus').textContent = '🔓 免密碼';
+      return;
+    }
+    if (data.valid) {
+      document.getElementById('lockStatus').textContent = '🔒 已驗證';
+    } else {
+      document.getElementById('lockStatus').textContent = '🔒 需要密碼';
+      showPasswordModal();
+    }
+  } catch(e) {
+    document.getElementById('lockStatus').textContent = '⚠️ 離線';
+  }
+}
+
+function showPasswordModal() {
+  if (!passwordRequired) return;
+  document.getElementById('passwordModal').classList.add('active');
+  document.getElementById('passwordInput').focus();
+}
+
+async function submitPassword() {
+  const pw = document.getElementById('passwordInput').value;
+  const resp = await fetch('/api/verify-password', {
+    method: 'POST',
+    headers: { 'X-Api-Password': pw },
+  });
+  const data = await resp.json();
+  if (data.valid) {
+    apiPassword = pw;
+    localStorage.setItem('api_password', pw);
+    document.getElementById('passwordModal').classList.remove('active');
+    document.getElementById('lockStatus').textContent = '🔒 已驗證';
+    document.getElementById('passwordError').style.display = 'none';
+  } else {
+    document.getElementById('passwordError').style.display = 'block';
+  }
+}
+
+checkAuth();
+
+// --- File handling ---
+const pdfInput = document.getElementById('pdfInput');
+const pdfZone = document.getElementById('pdfZone');
+pdfInput.addEventListener('change', () => {
+  const f = pdfInput.files[0];
+  document.getElementById('pdfName').textContent = f ? f.name : '';
+  pdfZone.classList.toggle('has-file', !!f);
+});
+['dragenter','dragover'].forEach(e => {
+  pdfZone.addEventListener(e, ev => { ev.preventDefault(); pdfZone.classList.add('drag-over'); });
+});
+['dragleave','drop'].forEach(e => {
+  pdfZone.addEventListener(e, ev => { ev.preventDefault(); pdfZone.classList.remove('drag-over'); });
+});
+pdfZone.addEventListener('drop', ev => {
+  const files = ev.dataTransfer.files;
+  if (files.length && files[0].name.toLowerCase().endsWith('.pdf')) {
+    pdfInput.files = files;
+    pdfInput.dispatchEvent(new Event('change'));
+  }
+});
+
+function toggleTemplateUpload() {
+  const show = document.getElementById('tplOverride').checked;
+  document.getElementById('tplUploads').classList.toggle('show', show);
+}
+
+function onTemplateFile(input, containerId) {
+  const container = document.getElementById(containerId);
+  const f = input.files[0];
+  const nameEl = document.getElementById(containerId + 'Name');
+  nameEl.textContent = f ? f.name : '';
+  container.classList.toggle('has-file', !!f);
+}
+
+function clearFile(event, inputId) {
+  event.preventDefault();
+  event.stopPropagation();
+  const input = document.getElementById(inputId);
+  input.value = '';
+  input.dispatchEvent(new Event('change'));
+  const container = input.closest('.template-item') || input.closest('.upload-zone');
+  if (container) {
+    container.classList.remove('has-file');
+    const nameEl = container.querySelector('.t-file, .upload-filename');
+    if (nameEl) nameEl.textContent = '';
+  }
+}
+
+// --- Progress ---
+function setStep(n) {
+  for (let i = 1; i <= 4; i++) {
+    const el = document.getElementById('step' + i);
+    el.classList.remove('active','done');
+    if (i < n) el.classList.add('done');
+    else if (i === n) el.classList.add('active');
+  }
+}
+
+function showToast(msg, type='success') {
+  const t = document.getElementById('toast');
+  t.textContent = msg;
+  t.className = 'toast ' + type;
+  setTimeout(() => t.classList.add('show'), 10);
+  setTimeout(() => t.classList.remove('show'), 4000);
+}
+
+// --- Generate ---
+let lastZipBlob = null;
+let lastZipName = '';
+
+async function generate() {
+  const pdf = pdfInput.files[0];
+  if (!pdf) { showToast('請先上傳報價單 PDF','error'); return; }
+
+  const docs = [];
+  ['chkAcceptance','chkBid','chkQuote','chkCompliance'].forEach(id => {
+    const cb = document.getElementById(id);
+    if (cb.checked) docs.push(cb.value);
+  });
+  if (!docs.length) { showToast('請至少選擇一種文件類型','error'); return; }
+
+  const form = new FormData();
+  form.append('quote_pdf', pdf);
+
+  // Only send template overrides if toggle is on
+  if (document.getElementById('tplOverride').checked) {
+    const tplMap = {
+      'tplAcceptanceInput': 'acceptance_template',
+      'tplBidInput': 'bid_template',
+      'tplQuoteInput': 'quote_template',
+      'tplComplianceInput': 'compliance_template',
+    };
+    for (const [inputId, fieldName] of Object.entries(tplMap)) {
+      const f = document.getElementById(inputId).files[0];
+      if (f) form.append(fieldName, f);
+    }
+  }
+
+  const params = new URLSearchParams();
+  docs.forEach(d => params.append('documents', d));
+  const brief = document.getElementById('projectBrief').value.trim();
+  if (brief) params.set('project_brief', brief);
+
+  const overlay = document.getElementById('progressOverlay');
+  const btn = document.getElementById('btnGenerate');
+  btn.disabled = true;
+  overlay.classList.add('active');
+  setStep(1);
+
+  const timers = [];
+  timers.push(setTimeout(() => {
+    setStep(2);
+    document.getElementById('progressText').textContent = 'AI 分析中...';
+    document.getElementById('progressSub').textContent = '正在使用 Claude AI 生成專業工程內容';
+  }, 3000));
+  timers.push(setTimeout(() => {
+    setStep(3);
+    document.getElementById('progressText').textContent = '產出文件中...';
+    document.getElementById('progressSub').textContent = '正在格式化 Word / Excel 文件';
+  }, 15000));
+
+  try {
+    const headers = {};
+    if (apiPassword) headers['X-Api-Password'] = apiPassword;
+
+    const resp = await fetch('/api/generate?' + params.toString(), {
+      method: 'POST',
+      body: form,
+      headers,
+    });
+
+    timers.forEach(clearTimeout);
+
+    if (resp.status === 401) {
+      showToast('密碼錯誤，請重新輸入','error');
+      showPasswordModal();
+      return;
+    }
+
+    if (!resp.ok) {
+      const err = await resp.text();
+      throw new Error(err || `HTTP ${resp.status}`);
+    }
+
+    setStep(4);
+    document.getElementById('progressText').textContent = '打包中...';
+
+    const cd = resp.headers.get('Content-Disposition') || '';
+    const match = cd.match(/filename\*?=(?:UTF-8'')?([^;\s]+)/i);
+    lastZipName = match ? decodeURIComponent(match[1]) : 'output.zip';
+    lastZipBlob = await resp.blob();
+
+    await showResult(lastZipBlob);
+    overlay.classList.remove('active');
+    showToast('文件生成成功！');
+
+  } catch(err) {
+    overlay.classList.remove('active');
+    showToast('生成失敗：' + err.message, 'error');
+    console.error(err);
+  } finally {
+    btn.disabled = false;
+    document.getElementById('progressText').textContent = '正在處理...';
+    document.getElementById('progressSub').textContent = '請稍候，AI 正在分析報價單';
+    setStep(1);
+  }
+}
+
+async function showResult(blob) {
+  const resultCard = document.getElementById('resultCard');
+  const resultFiles = document.getElementById('resultFiles');
+  const resultInfo = document.getElementById('resultInfo');
+  resultFiles.innerHTML = '';
+  resultInfo.textContent = `ZIP 檔案大小：${(blob.size/1024).toFixed(1)} KB`;
+  try {
+    const buf = await blob.arrayBuffer();
+    parseZipDirectory(buf).forEach(f => {
+      if (f.name.startsWith('_')) return;
+      const li = document.createElement('li');
+      const ext = f.name.split('.').pop().toLowerCase();
+      const icon = ext === 'docx' ? '📋' : '📊';
+      li.innerHTML = `<span class="file-name">${icon} ${f.name}</span><span class="file-size">${(f.size/1024).toFixed(1)} KB</span>`;
+      resultFiles.appendChild(li);
+    });
+  } catch(e) { console.warn('ZIP parse:', e); }
+  resultCard.classList.add('show');
+  resultCard.scrollIntoView({ behavior:'smooth', block:'nearest' });
+}
+
+function parseZipDirectory(buffer) {
+  const view = new DataView(buffer);
+  const files = [];
+  let eocd = -1;
+  for (let i = buffer.byteLength - 22; i >= 0; i--) {
+    if (view.getUint32(i, true) === 0x06054b50) { eocd = i; break; }
+  }
+  if (eocd < 0) return files;
+  const cdOff = view.getUint32(eocd + 16, true);
+  const cdN = view.getUint16(eocd + 10, true);
+  let pos = cdOff;
+  for (let i = 0; i < cdN; i++) {
+    if (view.getUint32(pos, true) !== 0x02014b50) break;
+    const nLen = view.getUint16(pos + 28, true);
+    const eLen = view.getUint16(pos + 30, true);
+    const cLen = view.getUint16(pos + 32, true);
+    const size = view.getUint32(pos + 24, true);
+    const name = new TextDecoder('utf-8').decode(new Uint8Array(buffer, pos + 46, nLen));
+    files.push({ name, size });
+    pos += 46 + nLen + eLen + cLen;
+  }
+  return files;
+}
+
+function downloadZip() {
+  if (!lastZipBlob) return;
+  const url = URL.createObjectURL(lastZipBlob);
+  const a = document.createElement('a');
+  a.href = url; a.download = lastZipName;
+  document.body.appendChild(a); a.click();
+  document.body.removeChild(a);
+  URL.revokeObjectURL(url);
+}
+</script>
+</body>
+</html>
