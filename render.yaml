@@ -3,6 +3,7 @@ services:
     name: engineering-doc-generator
     runtime: docker
     plan: free
+    healthCheckPath: /api/health
     envVars:
       - key: ANTHROPIC_API_KEY
         sync: false
