@@ -1,0 +1,624 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<title>工程文件生成系統</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/exceljs@4.4.0/dist/exceljs.min.js"></script>
+<script src="https://unpkg.com/docx@8.5.0/build/index.umd.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/jszip@3.10.1/dist/jszip.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/file-saver@2.0.5/dist/FileSaver.min.js"></script>
+<style>
+:root{--pri:#2563eb;--pri-l:#dbeafe;--ok:#16a34a;--ok-l:#dcfce7;--err:#dc2626;--g1:#f3f4f6;--g2:#e5e7eb;--g3:#d1d5db;--g4:#9ca3af;--g5:#6b7280;--g7:#374151;--g8:#1f2937;--r:12px}
+*{margin:0;padding:0;box-sizing:border-box}
+body{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI","Microsoft JhengHei",sans-serif;background:linear-gradient(135deg,#667eea,#764ba2);min-height:100vh;min-height:100dvh;color:var(--g8)}
+.wrap{max-width:640px;margin:0 auto;padding:16px;padding-bottom:env(safe-area-inset-bottom,16px)}
+.hdr{text-align:center;padding:24px 0 16px;color:#fff}
+.hdr h1{font-size:22px;font-weight:700;text-shadow:0 2px 4px rgba(0,0,0,.2)}
+.hdr p{font-size:13px;opacity:.85;margin-top:4px}
+.card{background:#fff;border-radius:var(--r);box-shadow:0 10px 15px -3px rgba(0,0,0,.1);padding:20px;margin-bottom:16px}
+.ct{font-size:15px;font-weight:600;color:var(--g7);margin-bottom:14px;display:flex;align-items:center;gap:8px}
+.uz{border:2px dashed var(--g3);border-radius:var(--r);padding:28px 16px;text-align:center;cursor:pointer;transition:.2s;position:relative}
+.uz:active,.uz.drag{border-color:var(--pri);background:var(--pri-l)}
+.uz.has{border-color:var(--ok);background:var(--ok-l);border-style:solid}
+.uz input{position:absolute;inset:0;opacity:0;cursor:pointer;font-size:0}
+.uz .ico{font-size:36px;margin-bottom:8px}
+.uz .tx{font-size:14px;color:var(--g5)}
+.uz .tx b{color:var(--pri)}
+.uz .fn{font-size:13px;color:var(--ok);font-weight:600;margin-top:6px;word-break:break-all}
+.ta{width:100%;border:1.5px solid var(--g2);border-radius:8px;padding:12px;font-size:14px;font-family:inherit;resize:vertical;min-height:80px;line-height:1.6}
+.ta:focus{outline:none;border-color:var(--pri);box-shadow:0 0 0 3px rgba(37,99,235,.1)}
+.hint{font-size:11px;color:var(--g4);margin-top:6px;line-height:1.4}
+.dcs{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+.dc{display:flex;align-items:center;gap:8px;padding:10px 12px;border:1.5px solid var(--g2);border-radius:8px;cursor:pointer;-webkit-tap-highlight-color:transparent}
+.dc:has(input:checked){border-color:var(--pri);background:var(--pri-l)}
+.dc input{width:18px;height:18px;accent-color:var(--pri);flex-shrink:0}
+.dc label{font-size:13px;font-weight:500;cursor:pointer;line-height:1.3}
+.dc .ext{font-size:10px;color:var(--g4);display:block}
+.btn{width:100%;padding:16px;border:none;border-radius:var(--r);background:linear-gradient(135deg,#2563eb,#7c3aed);color:#fff;font-size:17px;font-weight:700;cursor:pointer;letter-spacing:1px}
+.btn:active{transform:scale(.98)}
+.btn:disabled{background:var(--g3);cursor:not-allowed}
+.set-row{display:flex;gap:8px;align-items:center}
+.set-row input{flex:1;padding:10px;border:1.5px solid var(--g2);border-radius:8px;font-size:13px;font-family:inherit}
+.set-row input:focus{outline:none;border-color:var(--pri)}
+.set-row .sbtn{padding:10px 16px;border:none;border-radius:8px;background:var(--pri);color:#fff;font-size:13px;font-weight:600;cursor:pointer;white-space:nowrap}
+.tag{display:inline-block;padding:3px 10px;border-radius:12px;font-size:11px;font-weight:600}
+.tag.ok{background:var(--ok-l);color:var(--ok)}
+.tag.no{background:#fee2e2;color:var(--err)}
+.ovl{display:none;position:fixed;inset:0;background:rgba(0,0,0,.6);z-index:1000;justify-content:center;align-items:center;backdrop-filter:blur(4px)}
+.ovl.on{display:flex}
+.pcard{background:#fff;border-radius:16px;padding:32px 28px;text-align:center;width:85%;max-width:340px;box-shadow:0 25px 50px rgba(0,0,0,.25)}
+.spin{width:48px;height:48px;border:4px solid var(--g2);border-top-color:var(--pri);border-radius:50%;animation:sp .8s linear infinite;margin:0 auto 16px}
+@keyframes sp{to{transform:rotate(360deg)}}
+.ptx{font-size:15px;color:var(--g7);font-weight:600}
+.psub{font-size:12px;color:var(--g4);margin-top:6px}
+.psteps{margin-top:16px;text-align:left}
+.pst{font-size:12px;color:var(--g4);padding:4px 0;display:flex;align-items:center;gap:6px}
+.pst.on{color:var(--pri);font-weight:600}
+.pst.ok{color:var(--ok)}
+.dot{width:8px;height:8px;border-radius:50%;background:var(--g3);flex-shrink:0}
+.pst.on .dot{background:var(--pri);animation:pu 1s infinite}
+.pst.ok .dot{background:var(--ok)}
+@keyframes pu{0%,100%{opacity:1}50%{opacity:.4}}
+.toast{position:fixed;bottom:24px;left:50%;transform:translateX(-50%) translateY(100px);padding:14px 24px;border-radius:12px;font-size:14px;font-weight:600;z-index:2000;transition:transform .3s;max-width:90%;text-align:center;box-shadow:0 10px 15px rgba(0,0,0,.1)}
+.toast.show{transform:translateX(-50%) translateY(0)}
+.toast.ok{background:var(--ok);color:#fff}
+.toast.err{background:var(--err);color:#fff}
+.res{display:none}.res.show{display:block}
+.rfl{list-style:none}
+.rfl li{padding:10px 0;border-bottom:1px solid var(--g1);font-size:13px;display:flex;justify-content:space-between;align-items:center}
+.rfl li:last-child{border-bottom:none}
+.bdl{display:block;margin-top:12px;padding:12px 24px;background:var(--ok);color:#fff;border:none;border-radius:8px;font-size:15px;font-weight:600;cursor:pointer;width:100%;text-align:center}
+.ft{text-align:center;padding:16px;color:rgba(255,255,255,.6);font-size:11px}
+.clr{position:absolute;top:4px;right:4px;width:24px;height:24px;border-radius:50%;border:none;background:var(--err);color:#fff;font-size:16px;cursor:pointer;display:none;align-items:center;justify-content:center;z-index:5;line-height:1}
+.has .clr{display:flex}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <div class="hdr"><h1>工程文件生成系統</h1><p>上傳報價單 PDF，AI 自動產出工程文件</p></div>
+
+  <!-- API Key -->
+  <div class="card">
+    <div class="ct">⚙️ Gemini API Key</div>
+    <div class="set-row">
+      <input type="password" id="apiKey" placeholder="貼上 API Key...">
+      <button class="sbtn" onclick="saveKey()">儲存</button>
+    </div>
+    <div style="margin-top:8px;display:flex;align-items:center;gap:8px">
+      <span class="tag no" id="keyStatus">未設定</span>
+      <a href="https://aistudio.google.com/apikey" target="_blank" style="font-size:11px;color:var(--pri)">免費取得 Key →</a>
+    </div>
+    <div class="hint" style="margin-top:8px">到 Google AI Studio 免費申請，完全免費不用綁卡。</div>
+  </div>
+
+  <!-- PDF -->
+  <div class="card">
+    <div class="ct">📄 報價單 PDF（必填）</div>
+    <div class="uz" id="pdfZone">
+      <input type="file" id="pdfInput" accept=".pdf">
+      <button class="clr" onclick="clr(event,'pdfInput')">&times;</button>
+      <div class="ico">📄</div>
+      <div class="tx">點擊上傳<b>報價單 PDF</b></div>
+      <div class="fn" id="pdfName"></div>
+    </div>
+  </div>
+
+  <!-- Brief -->
+  <div class="card">
+    <div class="ct">✏️ 工程案說明（選填）</div>
+    <textarea class="ta" id="brief" placeholder="例：本案為欣興電子YM1廠區5樓無塵室改善工程，主要進行隔間庫板更換及空調系統升級..."></textarea>
+    <div class="hint">可簡述工程背景、目的、範圍。若不填寫，AI 將自動根據報價單判斷生成。</div>
+  </div>
+
+  <!-- Doc types -->
+  <div class="card">
+    <div class="ct">✅ 生成文件類型</div>
+    <div class="dcs">
+      <div class="dc"><input type="checkbox" id="c1" value="acceptance" checked><label for="c1">驗收規範<span class="ext">.docx</span></label></div>
+      <div class="dc"><input type="checkbox" id="c2" value="bid" checked><label for="c2">空白標單<span class="ext">.xlsx</span></label></div>
+      <div class="dc"><input type="checkbox" id="c3" value="quote" checked><label for="c3">報價內容<span class="ext">.xlsx</span></label></div>
+      <div class="dc"><input type="checkbox" id="c4" value="compliance" checked><label for="c4">規格篩選表<span class="ext">.xlsx</span></label></div>
+    </div>
+  </div>
+
+  <button class="btn" id="goBtn" onclick="generate()">生成工程文件</button>
+
+  <!-- Result -->
+  <div class="card res" id="resCard">
+    <div class="ct" style="color:var(--ok)">✅ 生成完成</div>
+    <ul class="rfl" id="resList"></ul>
+    <button class="bdl" onclick="dlZip()">下載 ZIP 檔案</button>
+  </div>
+
+  <div class="ft">工程文件生成系統 v2.0 — 純前端版</div>
+</div>
+
+<!-- Progress -->
+<div class="ovl" id="ovl">
+  <div class="pcard">
+    <div class="spin"></div>
+    <div class="ptx" id="ptx">正在處理...</div>
+    <div class="psub" id="psub">請稍候</div>
+    <div class="psteps">
+      <div class="pst on" id="s1"><span class="dot"></span>解析報價單 PDF</div>
+      <div class="pst" id="s2"><span class="dot"></span>AI 分析生成內容</div>
+      <div class="pst" id="s3"><span class="dot"></span>產出工程文件</div>
+      <div class="pst" id="s4"><span class="dot"></span>打包下載檔案</div>
+    </div>
+  </div>
+</div>
+<div class="toast" id="toast"></div>
+
+<script>
+// ===== CONFIG =====
+pdfjsLib.GlobalWorkerOptions.workerSrc='https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
+const GEMINI_URL='https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent';
+
+// ===== UI HELPERS =====
+const $=id=>document.getElementById(id);
+function toast(m,t='ok'){const e=$('toast');e.textContent=m;e.className='toast '+t;setTimeout(()=>e.classList.add('show'),10);setTimeout(()=>e.classList.remove('show'),4000)}
+function step(n){for(let i=1;i<=4;i++){const e=$('s'+i);e.classList.remove('on','ok');if(i<n)e.classList.add('ok');else if(i===n)e.classList.add('on')}}
+
+// ===== API KEY =====
+let apiKey=localStorage.getItem('gemini_key')||'';
+if(apiKey){$('apiKey').value=apiKey;$('keyStatus').textContent='已設定';$('keyStatus').className='tag ok'}
+function saveKey(){apiKey=$('apiKey').value.trim();if(!apiKey){toast('請輸入 API Key','err');return}localStorage.setItem('gemini_key',apiKey);$('keyStatus').textContent='已設定';$('keyStatus').className='tag ok';toast('API Key 已儲存')}
+
+// ===== FILE INPUT =====
+const pdfIn=$('pdfInput'),pdfZ=$('pdfZone');
+pdfIn.addEventListener('change',()=>{const f=pdfIn.files[0];$('pdfName').textContent=f?f.name:'';pdfZ.classList.toggle('has',!!f)});
+function clr(e,id){e.preventDefault();e.stopPropagation();const inp=$(id);inp.value='';inp.dispatchEvent(new Event('change'));const c=inp.closest('.uz');if(c){c.classList.remove('has');const n=c.querySelector('.fn');if(n)n.textContent=''}}
+
+// ===== PDF PARSER =====
+async function parsePdf(file){
+  const buf=await file.arrayBuffer();
+  const pdf=await pdfjsLib.getDocument({data:buf}).promise;
+  let allText='';
+  for(let i=1;i<=pdf.numPages;i++){
+    const page=await pdf.getPage(i);
+    const tc=await page.getTextContent();
+    const lines=[];
+    let lastY=null;
+    for(const item of tc.items){
+      if(lastY!==null&&Math.abs(item.transform[5]-lastY)>5)lines.push('\n');
+      lines.push(item.str);
+      lastY=item.transform[5];
+    }
+    allText+=lines.join('')+'\n\n';
+  }
+  return allText;
+}
+
+// ===== GEMINI CLIENT =====
+async function callGemini(prompt){
+  const resp=await fetch(GEMINI_URL+'?key='+apiKey,{
+    method:'POST',
+    headers:{'Content-Type':'application/json'},
+    body:JSON.stringify({
+      contents:[{parts:[{text:prompt}]}],
+      generationConfig:{temperature:0.3,maxOutputTokens:30000,responseMimeType:'application/json'}
+    })
+  });
+  if(!resp.ok){const e=await resp.text();throw new Error('Gemini API 錯誤: '+resp.status+' '+e)}
+  const data=await resp.json();
+  const text=data.candidates?.[0]?.content?.parts?.[0]?.text||'{}';
+  return JSON.parse(text);
+}
+
+// ===== MAIN GENERATE =====
+let zipBlob=null;
+async function generate(){
+  if(!apiKey){toast('請先設定 Gemini API Key','err');return}
+  const file=pdfIn.files[0];
+  if(!file){toast('請先上傳報價單 PDF','err');return}
+  const docs=[];
+  ['c1','c2','c3','c4'].forEach(id=>{const c=$(id);if(c.checked)docs.push(c.value)});
+  if(!docs.length){toast('請至少選擇一種文件','err');return}
+
+  $('goBtn').disabled=true;
+  $('ovl').classList.add('on');
+  step(1);$('ptx').textContent='解析 PDF...';$('psub').textContent='正在讀取報價單內容';
+
+  try{
+    // Step 1: Parse PDF
+    const pdfText=await parsePdf(file);
+    const brief=$('brief').value.trim();
+
+    // Step 2: AI Analysis
+    step(2);$('ptx').textContent='AI 分析中...';$('psub').textContent='Gemini 正在生成專業工程內容';
+
+    const aiResult=await callGemini(buildPrompt(pdfText,brief,docs));
+
+    // Step 3: Generate documents
+    step(3);$('ptx').textContent='產出文件中...';$('psub').textContent='正在建立 Word / Excel 檔案';
+
+    const zip=new JSZip();
+    const projectName=aiResult.project_name||'工程文件';
+    const fileList=[];
+
+    if(docs.includes('acceptance')&&aiResult.acceptance){
+      const blob=await genAcceptance(aiResult);
+      const fn='驗收規範_'+projectName+'.docx';
+      zip.file(fn,blob);
+      fileList.push({name:fn,size:blob.size||blob.byteLength||0});
+    }
+    if(docs.includes('bid')&&aiResult.items){
+      const blob=await genBid(aiResult);
+      const fn='空白標單_'+projectName+'.xlsx';
+      zip.file(fn,blob);
+      fileList.push({name:fn,size:blob.size||blob.byteLength||0});
+    }
+    if(docs.includes('quote')&&aiResult.quote_fill){
+      const blob=await genQuoteFill(aiResult);
+      const fn='報價內容_'+projectName+'.xlsx';
+      zip.file(fn,blob);
+      fileList.push({name:fn,size:blob.size||blob.byteLength||0});
+    }
+    if(docs.includes('compliance')&&aiResult.compliance){
+      const blob=await genCompliance(aiResult);
+      const fn='規格篩選表_'+projectName+'.xlsx';
+      zip.file(fn,blob);
+      fileList.push({name:fn,size:blob.size||blob.byteLength||0});
+    }
+
+    // Step 4: Package
+    step(4);$('ptx').textContent='打包中...';
+    zipBlob=await zip.generateAsync({type:'blob'});
+
+    // Show results
+    $('ovl').classList.remove('on');
+    const rl=$('resList');rl.innerHTML='';
+    fileList.forEach(f=>{
+      const li=document.createElement('li');
+      const ext=f.name.split('.').pop();
+      li.innerHTML=`<span style="flex:1;word-break:break-all">${ext==='docx'?'📋':'📊'} ${f.name}</span>`;
+      rl.appendChild(li);
+    });
+    $('resCard').classList.add('show');
+    $('resCard').scrollIntoView({behavior:'smooth'});
+    toast('文件生成成功！');
+  }catch(err){
+    $('ovl').classList.remove('on');
+    toast('生成失敗：'+err.message,'err');
+    console.error(err);
+  }finally{
+    $('goBtn').disabled=false;
+  }
+}
+
+function dlZip(){if(zipBlob)saveAs(zipBlob,'工程文件.zip')}
+
+// ===== PROMPT =====
+function buildPrompt(pdfText,brief,docs){
+  return `你是一位資深工程文件專家。請根據以下報價單內容，生成結構化的工程文件資料。
+
+報價單原文：
+---
+${pdfText.substring(0,15000)}
+---
+
+${brief?'工程案說明：'+brief:''}
+
+請以 JSON 格式回覆，包含以下欄位：
+
+{
+  "project_name": "工程名稱（簡短）",
+  "vendor_name": "廠商名稱",
+  "document_number": "文件編號",
+  "project_brief": "200字以內的工程案概略說明",
+  "items": [
+    {
+      "section": "大項名稱（例如：裝修工程）",
+      "name": "項目名稱",
+      "unit": "單位",
+      "quantity": 數量,
+      "unit_price": 單價,
+      "total": 合計
+    }
+  ],
+  ${docs.includes('acceptance')?`"acceptance": {
+    "equipment_location": "設備/工程位置",
+    "equipment_type": "設備/工程類型",
+    "spec_info": "規格資訊",
+    "problem_description": "工程背景與需求描述（100字以上）",
+    "repair_needs": "施工需求說明（100字以上）",
+    "contractor_requirements": "承包商資格與安全要求（100字以上）",
+    "preparation_steps": "施工前準備事項（100字以上）",
+    "construction_content": "主要施工內容與方法（150字以上）",
+    "acceptance_procedures": "驗收程序說明（100字以上）",
+    "criteria": [
+      {"category": "分類", "standard": "驗收標準說明"}
+    ],
+    "insurance_text": "施工保險要求說明（80字以上）",
+    "work_area_text": "施工區域管理說明（80字以上）"
+  },`:''}
+  ${docs.includes('quote')?`"quote_fill": {
+    "situation_desc_1": "現況說明第一段（描述目前設備/環境狀態，80字以上）",
+    "problem_risk_1": "問題及風險第一段（說明不處理會有什麼風險，80字以上）",
+    "countermeasure_1": "對策評估（評估可行方案，80字以上）",
+    "execution_1": "執行改善第一段（具體施工方法，80字以上）",
+    "improvement_desc": "改善說明（預期效果，50字以上）",
+    "supplementary_notes": "補充說明（注意事項，50字以上）"
+  },`:''}
+  ${docs.includes('compliance')?`"compliance": [
+    {
+      "category": "類別（如：冰水/電力/潔淨室/規劃/工程施工要求）",
+      "items": [
+        {"spec": "規範說明", "applicable": true或false}
+      ]
+    }
+  ],`:''}
+  "total_amount": 總金額
+}
+
+重要要求：
+1. items 必須完整列出報價單中所有項目，保持原始層級結構
+2. 所有文字內容必須專業、詳細、針對本案工程特性撰寫
+3. 金額和數量必須準確反映原始報價單
+4. 驗收標準至少10項，涵蓋品質、安全、環境等面向
+5. 規格篩選至少30項規範，分類清楚
+6. 所有說明文字請使用繁體中文`;
+}
+
+// ===== ACCEPTANCE SPEC (DOCX) =====
+async function genAcceptance(data){
+  const{Document,Paragraph,Table,TableRow,TableCell,TextRun,WidthType,AlignmentType,HeadingLevel,BorderStyle}=docx;
+  const a=data.acceptance;
+  const blue='4F81BD';
+
+  const doc=new Document({
+    sections:[{
+      properties:{page:{margin:{top:1440,bottom:1440,left:1440,right:1440}}},
+      children:[
+        new Paragraph({alignment:AlignmentType.CENTER,spacing:{after:300},children:[
+          new TextRun({text:data.project_name+' 驗收規範',bold:true,size:32,font:'Microsoft JhengHei'})
+        ]}),
+
+        // Section 1
+        mkHead('壹、維修設備基本資訊',blue),
+        mkInfoTable(a),
+
+        // Section 2
+        mkHead('貳、施工處置與安全規範',blue),
+        mkSub('一、承包商資格與安全要求'),mkBody(a.contractor_requirements||''),
+        mkSub('二、施工前準備事項'),mkBody(a.preparation_steps||''),
+        mkSub('三、主要施工內容與方法'),mkBody(a.construction_content||''),
+        mkSub('四、驗收程序說明'),mkBody(a.acceptance_procedures||''),
+
+        // Section 3
+        mkHead('參、施工與驗收標準表',blue),
+        mkCriteriaTable(a.criteria||[]),
+
+        // Section 4
+        mkHead('肆、施工保險要求',blue),
+        mkBody(a.insurance_text||'依公司規定辦理施工保險。'),
+
+        // Section 5
+        mkHead('伍、施工區域',blue),
+        mkBody(a.work_area_text||'依工程範圍劃定施工區域。'),
+      ]
+    }]
+  });
+
+  return await docx.Packer.toBlob(doc);
+
+  function mkHead(t,c){return new Paragraph({spacing:{before:300,after:150},children:[new TextRun({text:t,bold:true,size:28,color:c,font:'Microsoft JhengHei'})]})}
+  function mkSub(t){return new Paragraph({spacing:{before:200,after:100},children:[new TextRun({text:t,bold:true,size:24,font:'Microsoft JhengHei'})]})}
+  function mkBody(t){return new Paragraph({spacing:{after:150},children:[new TextRun({text:t,size:22,font:'Microsoft JhengHei'})]})}
+  function mkInfoTable(a){
+    const rows=[
+      ['工程位置',a.equipment_location||''],
+      ['工程類型',a.equipment_type||''],
+      ['規格資訊',a.spec_info||''],
+      ['工程背景',a.problem_description||''],
+      ['施工需求',a.repair_needs||'']
+    ];
+    return new Table({
+      width:{size:100,type:WidthType.PERCENTAGE},
+      rows:rows.map(r=>new TableRow({children:[
+        new TableCell({width:{size:25,type:WidthType.PERCENTAGE},shading:{fill:'D9E1F2'},children:[new Paragraph({children:[new TextRun({text:r[0],bold:true,size:22,font:'Microsoft JhengHei'})]})]}),
+        new TableCell({width:{size:75,type:WidthType.PERCENTAGE},children:[new Paragraph({children:[new TextRun({text:r[1],size:22,font:'Microsoft JhengHei'})]})]})
+      ]}))
+    });
+  }
+  function mkCriteriaTable(criteria){
+    const hdr=new TableRow({children:['項次','類別','驗收標準','驗收結果'].map(t=>
+      new TableCell({shading:{fill:'D9E1F2'},children:[new Paragraph({alignment:AlignmentType.CENTER,children:[new TextRun({text:t,bold:true,size:20,font:'Microsoft JhengHei'})]})]})
+    )});
+    const rows=criteria.map((c,i)=>new TableRow({children:[
+      new TableCell({children:[new Paragraph({alignment:AlignmentType.CENTER,children:[new TextRun({text:''+(i+1),size:20,font:'Microsoft JhengHei'})]})]}),
+      new TableCell({children:[new Paragraph({children:[new TextRun({text:c.category||'',size:20,font:'Microsoft JhengHei'})]})]}),
+      new TableCell({children:[new Paragraph({children:[new TextRun({text:c.standard||'',size:20,font:'Microsoft JhengHei'})]})]}),
+      new TableCell({children:[new Paragraph({alignment:AlignmentType.CENTER,children:[new TextRun({text:'',size:20})]})]})
+    ]}));
+    return new Table({width:{size:100,type:WidthType.PERCENTAGE},rows:[hdr,...rows]});
+  }
+}
+
+// ===== COMMON BID (XLSX) =====
+async function genBid(data){
+  const wb=new ExcelJS.Workbook();
+  const ws=wb.addWorksheet('共同標單');
+  ws.columns=[{width:6},{width:30},{width:8},{width:12},{width:12},{width:14}];
+
+  // Header
+  const h1=ws.addRow(['',data.project_name+' 共同標單','','','','']);
+  ws.mergeCells(h1.number,2,h1.number,6);
+  h1.getCell(2).font={bold:true,size:16};h1.getCell(2).alignment={horizontal:'center'};h1.height=30;
+
+  ws.addRow(['','廠商名稱：','','','','']);
+  ws.addRow(['','聯絡電話：','','','','']);
+  ws.addRow([]);
+
+  // Column headers
+  const ch=ws.addRow(['項次','品名/工程內容','單位','數量','單價','複價']);
+  ch.eachCell(c=>{c.font={bold:true};c.fill={type:'pattern',pattern:'solid',fgColor:{argb:'FFD9E1F2'}};c.alignment={horizontal:'center'};c.border={bottom:{style:'thin'}}});
+
+  // Group items by section
+  const sections={};
+  (data.items||[]).forEach(item=>{
+    const sec=item.section||'工程項目';
+    if(!sections[sec])sections[sec]=[];
+    sections[sec].push(item);
+  });
+
+  const nums='壹貳參肆伍陸柒捌玖拾';
+  let secIdx=0;
+  let dataStartRow=ch.number+1;
+
+  Object.entries(sections).forEach(([secName,items])=>{
+    // Section header
+    const sr=ws.addRow([nums[secIdx]||'',secName,'','','','']);
+    sr.getCell(1).font={bold:true};sr.getCell(2).font={bold:true};
+    sr.eachCell(c=>{c.fill={type:'pattern',pattern:'solid',fgColor:{argb:'FFE2EFDA'}}});
+
+    items.forEach((item,i)=>{
+      const r=ws.addRow([i+1,item.name||'',item.unit||'',item.quantity||'','','']);
+      // Formula: if D or E empty, blank, else D*E
+      r.getCell(6).value={formula:`IF(OR(D${r.number}="",E${r.number}=""),"",D${r.number}*E${r.number})`};
+    });
+
+    // Subtotal
+    const st=ws.addRow(['','小計','','','','']);
+    st.getCell(2).font={bold:true};
+    const firstItem=dataStartRow+1;// after section header
+    st.getCell(6).value={formula:`SUM(F${sr.number+1}:F${st.number-1})`};
+    secIdx++;
+    dataStartRow=st.number+1;
+  });
+
+  // Grand total
+  ws.addRow([]);
+  const gt=ws.addRow(['','合計（未稅）','','','','']);
+  gt.getCell(2).font={bold:true,size:12};
+  gt.getCell(6).font={bold:true,size:12};
+
+  // Tax
+  const tx=ws.addRow(['','營業稅 5%','','','','']);
+  const tt=ws.addRow(['','總計','','','','']);
+  tt.getCell(2).font={bold:true,size:14};tt.getCell(6).font={bold:true,size:14};
+
+  ws.addRow([]);ws.addRow(['','報價廠商簽章：_________________','','','日期：_________','']);
+
+  const buf=await wb.xlsx.writeBuffer();
+  return new Blob([buf],{type:'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'});
+}
+
+// ===== QUOTE FILL (XLSX) =====
+async function genQuoteFill(data){
+  const wb=new ExcelJS.Workbook();
+  const ws=wb.addWorksheet('保養、維修、改善、工程說明');
+  ws.columns=[{width:12},{width:15},{width:15},{width:15},{width:15},{width:15}];
+
+  const qf=data.quote_fill||{};
+
+  const addMergedRow=(text,startCol,endCol,opts={})=>{
+    const r=ws.addRow([]);
+    r.getCell(startCol).value=text;
+    if(endCol>startCol)ws.mergeCells(r.number,startCol,r.number,endCol);
+    if(opts.bold)r.getCell(startCol).font={bold:true};
+    if(opts.fill)r.getCell(startCol).fill={type:'pattern',pattern:'solid',fgColor:{argb:opts.fill}};
+    if(opts.size)r.getCell(startCol).font={...r.getCell(startCol).font,size:opts.size};
+    r.getCell(startCol).alignment={wrapText:true,vertical:'top'};
+    if(opts.height)r.height=opts.height;
+    return r;
+  };
+
+  // Title
+  addMergedRow('保養、維修、改善、工程說明',1,6,{bold:true,size:16,fill:'FFD9E1F2'});
+  ws.addRow([]);
+
+  // Info fields
+  const infoFields=[
+    ['請購名稱',data.project_name||''],
+    ['設備名稱',''],
+    ['廠別/站別',''],
+    ['費用別',''],
+    ['請購類別',''],
+  ];
+  infoFields.forEach(([label,val])=>{
+    const r=ws.addRow([label,'',val,'','','']);
+    r.getCell(1).font={bold:true};
+    r.getCell(1).fill={type:'pattern',pattern:'solid',fgColor:{argb:'FFE2EFDA'}};
+    ws.mergeCells(r.number,2,r.number,3);
+    ws.mergeCells(r.number,4,r.number,6);
+  });
+
+  ws.addRow([]);
+
+  // Block 1: 現況說明 / 問題及風險 / 對策評估 / 執行改善
+  addMergedRow('一、工程說明',1,6,{bold:true,fill:'FFD9E1F2'});
+
+  addMergedRow('【現況說明】',1,6,{bold:true});
+  addMergedRow(qf.situation_desc_1||'',1,6,{height:60});
+
+  addMergedRow('【問題及風險】',1,6,{bold:true});
+  addMergedRow(qf.problem_risk_1||'',1,6,{height:60});
+
+  addMergedRow('【對策評估】',1,6,{bold:true});
+  addMergedRow(qf.countermeasure_1||'',1,6,{height:60});
+
+  addMergedRow('【執行改善】',1,6,{bold:true});
+  addMergedRow(qf.execution_1||'',1,6,{height:60});
+
+  ws.addRow([]);
+
+  // Block 2
+  addMergedRow('二、改善說明',1,6,{bold:true,fill:'FFD9E1F2'});
+  addMergedRow(qf.improvement_desc||'',1,6,{height:60});
+
+  ws.addRow([]);
+  addMergedRow('三、補充說明',1,6,{bold:true,fill:'FFD9E1F2'});
+  addMergedRow(qf.supplementary_notes||'',1,6,{height:60});
+
+  const buf=await wb.xlsx.writeBuffer();
+  return new Blob([buf],{type:'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'});
+}
+
+// ===== COMPLIANCE FILTER (XLSX) =====
+async function genCompliance(data){
+  const wb=new ExcelJS.Workbook();
+  const ws=wb.addWorksheet('規格篩選表');
+  ws.columns=[{width:6},{width:14},{width:40},{width:12},{width:12},{width:12},{width:12}];
+
+  // Title
+  const t=ws.addRow(['',data.project_name+' 工程規範符合性篩選表','','','','','']);
+  ws.mergeCells(t.number,2,t.number,7);
+  t.getCell(2).font={bold:true,size:14};t.getCell(2).alignment={horizontal:'center'};
+
+  ws.addRow([]);
+
+  // Headers
+  const h=ws.addRow(['項次','類別','規範說明','本項次不適用','驗收結果','驗收日期','驗收者']);
+  h.eachCell(c=>{c.font={bold:true};c.fill={type:'pattern',pattern:'solid',fgColor:{argb:'FFD9E1F2'}};c.alignment={horizontal:'center',wrapText:true};c.border={bottom:{style:'thin'}}});
+
+  let idx=1;
+  (data.compliance||[]).forEach(cat=>{
+    // Category row
+    const cr=ws.addRow(['',cat.category||'','','','','','']);
+    cr.getCell(2).font={bold:true};
+    cr.eachCell(c=>{c.fill={type:'pattern',pattern:'solid',fgColor:{argb:'FFE2EFDA'}}});
+
+    (cat.items||[]).forEach(item=>{
+      const r=ws.addRow([idx,cat.category||'',item.spec||'',item.applicable===false?'V':'','','','']);
+      r.getCell(1).alignment={horizontal:'center'};
+      r.getCell(4).alignment={horizontal:'center'};
+      r.eachCell(c=>{c.border={bottom:{style:'hair'}}});
+      idx++;
+    });
+  });
+
+  ws.addRow([]);
+  const note=ws.addRow(['','備註：驗收結果欄填寫「合格」或「不合格」','','','','','']);
+  ws.mergeCells(note.number,2,note.number,7);
+  note.getCell(2).font={italic:true,color:{argb:'FF888888'},size:10};
+
+  const buf=await wb.xlsx.writeBuffer();
+  return new Blob([buf],{type:'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'});
+}
+</script>
+</body>
+</html>
